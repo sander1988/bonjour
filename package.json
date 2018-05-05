@@ -1,7 +1,7 @@
 {
-  "name": "bonjour",
+  "name": "bonjour-hap",
   "version": "3.5.0",
-  "description": "A Bonjour/Zeroconf implementation in pure JavaScript",
+  "description": "A Bonjour/Zeroconf implementation in pure JavaScript (for HAP)",
   "main": "index.js",
   "dependencies": {
     "array-flatten": "^2.1.0",
