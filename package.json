@@ -3,26 +3,18 @@
   "version": "3.5.4",
   "description": "A Bonjour/Zeroconf implementation in pure JavaScript (for HAP)",
   "main": "index.js",
-  "dependencies": {
-    "array-flatten": "^2.1.0",
-    "deep-equal": "^1.0.1",
-    "dns-equal": "^1.0.0",
-    "dns-txt": "^2.0.2",
-    "multicast-dns": "^7.2.0",
-    "multicast-dns-service-types": "^1.1.0"
-  },
-  "devDependencies": {
-    "after-all": "^2.0.2",
-    "safe-buffer": "^5.1.1",
-    "standard": "^11.0.0",
-    "tape": "^4.5.1"
-  },
+  "author": "Thomas Watson Steen <w@tson.dk> (https://twitter.com/wa7son)",
+  "license": "MIT",
   "scripts": {
     "test": "standard && tape test/*.js"
   },
+  "homepage": "https://github.com/homebridge/bonjour",
   "repository": {
     "type": "git",
-    "url": "https://github.com/KhaosT/bonjour.git"
+    "url": "https://github.com/homebridge/bonjour.git"
+  },
+  "bugs": {
+    "url": "https://github.com/homebridge/bonjour/issues"
   },
   "keywords": [
     "bonjour",
@@ -37,14 +29,18 @@
     "broadcast",
     "dns-sd"
   ],
-  "author": "Thomas Watson Steen <w@tson.dk> (https://twitter.com/wa7son)",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/watson/bonjour/issues"
+  "dependencies": {
+    "array-flatten": "^3.0.0",
+    "deep-equal": "^2.0.2",
+    "dns-equal": "^1.0.0",
+    "dns-txt": "^2.0.2",
+    "multicast-dns": "^7.2.0",
+    "multicast-dns-service-types": "^1.1.0"
   },
-  "homepage": "https://github.com/KhaosT/bonjour",
-  "coordinates": [
-    55.68250900965318,
-    12.586377442991648
-  ]
+  "devDependencies": {
+    "after-all": "^2.0.2",
+    "safe-buffer": "^5.1.1",
+    "standard": "^14.3.3",
+    "tape": "^4.5.1"
+  }
 }
