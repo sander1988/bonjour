@@ -30,7 +30,7 @@
     "dns-sd"
   ],
   "dependencies": {
-    "array-flatten": "^3.0.0",
+    "array-flatten": "^2.1.2",
     "deep-equal": "^2.0.2",
     "dns-equal": "^1.0.0",
     "dns-txt": "^2.0.2",
