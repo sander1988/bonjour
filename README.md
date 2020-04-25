@@ -1,22 +1,23 @@
-# bonjour
+# bonjour-hap
+
+![NPM-Version](https://badgen.net/npm/v/bonjour-hap)
+![NPM-Downloads](https://badgen.net/npm/dt/bonjour-hap)
+![Node-CI](https://github.com/homebridge/bonjour/workflows/Node-CI/badge.svg)
 
 A Bonjour/Zeroconf protocol implementation in pure JavaScript. Publish
 services on the local network or discover existing services using
 multicast DNS.
 
-[![Build status](https://travis-ci.org/watson/bonjour.svg?branch=master)](https://travis-ci.org/watson/bonjour)
-[![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat)](https://github.com/feross/standard)
-
 ## Installation
 
 ```
-npm install bonjour
+npm install bonjour-hap
 ```
 
 ## Usage
 
 ```js
-var bonjour = require('bonjour')()
+var bonjour = require('bonjour-hap')()
 
 // advertise an HTTP server on port 3000
 bonjour.publish({ name: 'My Web Server', type: 'http', port: 3000 })
@@ -32,7 +33,7 @@ bonjour.find({ type: 'http' }, function (service) {
 ### Initializing
 
 ```js
-var bonjour = require('bonjour')([options])
+var bonjour = require('bonjour-hap')([options])
 ```
 
 The `options` are optional and will be used when initializing the
