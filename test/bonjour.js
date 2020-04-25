@@ -6,7 +6,6 @@ var tape = require('tape')
 var afterAll = require('after-all')
 var Service = require('../lib/Service.js')
 var Bonjour = require('../')
-var Buffer = require('safe-buffer').Buffer
 
 var getAddresses = function () {
   var addresses = []
@@ -83,12 +82,12 @@ test('bonjour.find', function (bonjour, t) {
         t.equal(s.name, 'Foo Bar')
         t.equal(s.fqdn, 'Foo Bar._test._tcp.local')
         t.deepEqual(s.txt, {})
-        t.deepEqual(s.rawTxt, Buffer.from('00', 'hex'))
+        t.deepEqual(s.rawTxt, [])
       } else {
         t.equal(s.name, 'Baz')
         t.equal(s.fqdn, 'Baz._test._tcp.local')
         t.deepEqual(s.txt, { foo: 'bar' })
-        t.deepEqual(s.rawTxt, Buffer.from('07666f6f3d626172', 'hex'))
+        t.deepEqual(s.rawTxt, [Buffer.from('foo=bar')])
       }
       t.equal(s.host, os.hostname())
       t.equal(s.port, 3000)
@@ -153,7 +152,7 @@ test('bonjour.find - binary txt', function (bonjour, t) {
     browser.on('up', function (s) {
       t.equal(s.name, 'Foo')
       t.deepEqual(s.txt, { bar: Buffer.from('buz') })
-      t.deepEqual(s.rawTxt, Buffer.from('076261723d62757a', 'hex'))
+      t.deepEqual(s.rawTxt, [Buffer.from('bar=buz')])
       bonjour.destroy()
       t.end()
     })

@@ -32,14 +32,11 @@
   "dependencies": {
     "array-flatten": "^2.1.2",
     "deep-equal": "^2.0.2",
-    "dns-equal": "^1.0.0",
-    "dns-txt": "^2.0.2",
-    "multicast-dns": "^7.2.0",
+    "multicast-dns": "^7.2.2",
     "multicast-dns-service-types": "^1.1.0"
   },
   "devDependencies": {
     "after-all": "^2.0.2",
-    "safe-buffer": "^5.1.1",
     "standard": "^14.3.3",
     "tape": "^4.5.1"
   }
