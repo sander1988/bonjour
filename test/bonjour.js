@@ -118,7 +118,7 @@ test('bonjour.find', function (bonjour, t) {
 })
 
 test('bonjour.change', function (bonjour, t) {
-  var data = {init: true, found: false, timer: null}
+  var data = { init: true, found: false, timer: null }
   var service = bonjour.publish({ name: 'Baz', type: 'test', port: 3000, txt: { foo: 'bar' } }).on('up', function () {
     var browser = bonjour.find({ type: 'test' })
     browser.on('up', function (s) {
@@ -132,7 +132,7 @@ test('bonjour.change', function (bonjour, t) {
           t.end()
         }, 3000) // Wait for the record to update maximum 3000 ms
         data.init = false
-        service.updateTxt({foo: 'baz'})
+        service.updateTxt({ foo: 'baz' })
       }
 
       if (!data.init && !data.found && s.txt.foo === 'baz') {
