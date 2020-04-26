@@ -4,7 +4,7 @@ var os = require('os')
 var dgram = require('dgram')
 var tape = require('tape')
 var afterAll = require('after-all')
-var Service = require('../lib/Service.js')
+var Service = require('../src/Service.js')
 var Bonjour = require('../')
 
 var getAddresses = function () {

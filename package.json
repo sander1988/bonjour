@@ -2,14 +2,18 @@
   "name": "bonjour-hap",
   "version": "3.5.5",
   "description": "A Bonjour/Zeroconf implementation in pure JavaScript (for HAP)",
-  "main": "index.js",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "author": "Thomas Watson Steen <w@tson.dk> (https://twitter.com/wa7son)",
   "license": "MIT",
   "scripts": {
-    "lint": "standard",
-    "test": "tape test/*.js",
+    "clean": "rimraf src && rimraf coverage && rimraf .nyc_output",
+    "lint": "eslint 'src/**/*.{js,ts,json}'",
+    "build": "npm run clean && tsc",
+    "test": "ts-node node_modules/tape/bin/tape test/**/*.js",
     "test-coverage": "nyc --reporter=lcovonly npm test",
-    "clean": "rimraf coverage && rimraf .nyc_output"
+    "prepublishOnly": "npm run build",
+    "postpublish": "npm run clean"
   },
   "homepage": "https://github.com/homebridge/bonjour",
   "repository": {
@@ -39,10 +43,17 @@
     "multicast-dns-service-types": "^1.1.0"
   },
   "devDependencies": {
+    "@types/node": "^10.17.21",
+    "@types/deep-equal": "^1.0.1",
+    "@types/tape": "^4.13.0",
+    "typescript": "^3.8.3",
+    "ts-node": "^8.9.1",
     "after-all": "^2.0.2",
-    "standard": "^14.3.3",
     "tape": "^4.5.1",
     "nyc": "^15.0.1",
-    "rimraf": "^3.0.2"
+    "rimraf": "^3.0.2",
+    "eslint": "^6.8.0",
+    "@typescript-eslint/parser": "^2.27.0",
+    "@typescript-eslint/eslint-plugin": "^2.27.0"
   }
 }

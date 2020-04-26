@@ -1,7 +1,7 @@
 'use strict'
 
 const test = require('tape')
-const dnsEqual = require('../lib/utils/dnsEqual')
+const dnsEqual = require('../src/utils/dnsEqual')
 
 test('dns-equal', t => {
   t.equal(dnsEqual('Foo', 'foo'), true)
