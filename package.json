@@ -6,7 +6,10 @@
   "author": "Thomas Watson Steen <w@tson.dk> (https://twitter.com/wa7son)",
   "license": "MIT",
   "scripts": {
-    "test": "standard && tape test/*.js"
+    "lint": "standard",
+    "test": "tape test/*.js",
+    "test-coverage": "nyc --reporter=lcovonly npm test",
+    "clean": "rimraf coverage && rimraf .nyc_output"
   },
   "homepage": "https://github.com/homebridge/bonjour",
   "repository": {
@@ -38,6 +41,8 @@
   "devDependencies": {
     "after-all": "^2.0.2",
     "standard": "^14.3.3",
-    "tape": "^4.5.1"
+    "tape": "^4.5.1",
+    "nyc": "^15.0.1",
+    "rimraf": "^3.0.2"
   }
 }
