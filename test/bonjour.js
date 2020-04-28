@@ -1,6 +1,7 @@
 'use strict'
 
 var os = require('os')
+const ip = require('ip')
 var dgram = require('dgram')
 var tape = require('tape')
 var afterAll = require('after-all')
@@ -9,15 +10,17 @@ var Bonjour = require('../')
 
 var getAddresses = function () {
   var addresses = []
-  var itrs = os.networkInterfaces()
-  for (var i in itrs) {
-    var addrs = itrs[i]
-    for (var j in addrs) {
-      if (addrs[j].internal === false) {
-        addresses.push(addrs[j].address)
-      }
-    }
+
+  const ipv4 = ip.address('public', 'ipv4')
+  const ipv6 = ip.address('public', 'ipv6')
+
+  if (!ip.isLoopback(ipv4)) { // ip returns loopback address if there is not public ipv4 configured
+    addresses.push(ipv4)
   }
+  if (!ip.isLoopback(ipv6)) { // ip returns loopback address if there is not public ipv6 configured
+    addresses.push(ipv6)
+  }
+
   return addresses
 }
 

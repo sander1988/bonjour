@@ -1,20 +1,21 @@
 'use strict'
 
 var os = require('os')
+const ip = require('ip')
 var test = require('tape')
 var Service = require('../lib/Service.js')
 
 var getAddressesRecords = function (host) {
-  var records = []
-  var itrs = os.networkInterfaces()
-  for (var i in itrs) {
-    var addrs = itrs[i]
-    for (var j in addrs) {
-      if (addrs[j].internal === false) {
-        records.push({ data: addrs[j].address, name: host, ttl: 120, type: addrs[j].family === 'IPv4' ? 'A' : 'AAAA' })
-      }
+  const records = []
+
+  const addresses = [ip.address('public', 'ipv4'), ip.address('public', 'ipv6')]
+  addresses.forEach(address => {
+    if (ip.isLoopback(address)) {
+      return
     }
-  }
+    records.push({ data: address, name: host, ttl: 120, type: ip.isV4Format(address) ? 'A' : 'AAAA' })
+  })
+
   return records
 }
 
