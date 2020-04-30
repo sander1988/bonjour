@@ -8,11 +8,21 @@ var Service = require('../lib/Service.js')
 var getAddressesRecords = function (host) {
   const records = []
 
-  const addresses = [ip.address('public', 'ipv4'), ip.address('public', 'ipv6')]
+  const addresses = []
+  Object.values(os.networkInterfaces()).forEach(interfaces => {
+    interfaces.forEach(iface => {
+      if (iface.internal || iface.mac === '00:00:00:00:00:00' ||
+        ip.isLoopback(iface.address) ||
+        (!ip.isV4Format(iface.address) && ip.isPrivate(iface.address)) ||
+        addresses.includes(iface.address)) {
+        return
+      }
+
+      addresses.push(iface.address)
+    })
+  })
+
   addresses.forEach(address => {
-    if (ip.isLoopback(address)) {
-      return
-    }
     records.push({ data: address, name: host, ttl: 120, type: ip.isV4Format(address) ? 'A' : 'AAAA' })
   })
 

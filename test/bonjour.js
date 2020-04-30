@@ -9,17 +9,20 @@ var Service = require('../lib/Service.js')
 var Bonjour = require('../')
 
 var getAddresses = function () {
-  var addresses = []
+  const addresses = []
 
-  const ipv4 = ip.address('public', 'ipv4')
-  const ipv6 = ip.address('public', 'ipv6')
+  Object.values(os.networkInterfaces()).forEach(interfaces => {
+    interfaces.forEach(iface => {
+      if (iface.internal || iface.mac === '00:00:00:00:00:00' ||
+        ip.isLoopback(iface.address) ||
+        (!ip.isV4Format(iface.address) && ip.isPrivate(iface.address)) ||
+        addresses.includes(iface.address)) {
+        return
+      }
 
-  if (!ip.isLoopback(ipv4)) { // ip returns loopback address if there is not public ipv4 configured
-    addresses.push(ipv4)
-  }
-  if (!ip.isLoopback(ipv6)) { // ip returns loopback address if there is not public ipv6 configured
-    addresses.push(ipv6)
-  }
+      addresses.push(iface.address)
+    })
+  })
 
   return addresses
 }
