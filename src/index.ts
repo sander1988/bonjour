@@ -1,42 +1,51 @@
-'use strict'
+import {Server} from "./Server";
+import {MDNSOptions} from "multicast-dns";
+import {Registry} from "./Registry";
+import {Browser, BrowserOptions, DiscoveredService} from "./Browser";
+import {Service, ServiceOptions} from "./Service";
 
-var Registry = require('./Registry.js')
-var Server = require('./Server.js')
-var Browser = require('./Browser.js')
+export class Bonjour {
 
-function Bonjour (opts) {
-  if (!(this instanceof Bonjour)) { return new Bonjour(opts) }
+  private readonly server: Server;
+  private readonly registry: Registry;
 
-  this._server = new Server(opts)
-  this._registry = new Registry(this._server)
-}
-
-Bonjour.prototype = {
-  publish: function (opts) {
-    return this._registry.publish(opts)
-  },
-
-  unpublishAll: function (cb) {
-    this._registry.unpublishAll(cb)
-  },
-
-  find: function (opts, onup) {
-    return new Browser(this._server.mdns, opts, onup)
-  },
-
-  findOne: function (opts, cb) {
-    var browser = new Browser(this._server.mdns, opts)
-    browser.once('up', function (service) {
-      browser.stop()
-      if (cb) cb(service)
-    })
-    return browser
-  },
-
-  destroy: function () {
-    this._registry.destroy()
-    this._server.mdns.destroy()
+  constructor(options?: MDNSOptions) {
+    this.server = new Server(options);
+    this.registry = new Registry(this.server);
   }
+
+  publish(opts: ServiceOptions): Service {
+    return this.registry.publish(opts);
+  }
+
+  unpublishAll(callback?: (error?: Error) => void): void {
+    this.registry.unpublishAll(callback);
+  }
+
+  find(options?: BrowserOptions, onUp?: (service: DiscoveredService) => void): Browser {
+    return new Browser(this.server.mdns, options, onUp);
+  }
+
+  findOne(options?: BrowserOptions, onUp?: (service: DiscoveredService) => void): Browser {
+    const browser = new Browser(this.server.mdns, options);
+
+    browser.once("up", service => {
+      browser.stop();
+      if (onUp) {
+        onUp(service);
+      }
+    });
+
+    return browser;
+  }
+
+  destroy(): void {
+    this.registry.destroy();
+    this.server.mdns.destroy();
+  }
+
 }
 
-module.exports = Bonjour
+export default function (options?: MDNSOptions): Bonjour {
+  return new Bonjour(options);
+}

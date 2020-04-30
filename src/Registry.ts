@@ -1,111 +1,128 @@
-'use strict'
+import {Server} from "./Server";
+import {Service, ServiceEvent, ServiceOptions} from "./Service";
+import {Prober} from "./Prober";
+import {ResourceRecord} from "dns-packet";
 
-var flatten = require('array-flatten')
-var Service = require('./Service.js')
-var Prober = require('./Prober.js')
+export class Registry {
 
-var Registry = function (server) {
-  this._server = server
-  this._services = []
-}
+  private readonly server: Server;
+  private services: Service[] = [];
 
-Registry.prototype = {
+  constructor(server: Server) {
+    this.server = server;
+  }
 
-  publish: function (opts) {
-    opts = opts || {}
-    var service = new Service(opts)
-    service.on('service-publish', this._onServicePublish.bind(this))
-    service.on('service-unpublish', this._onServiceUnpublish.bind(this))
-    service.on('service-announce-request', this._onAnnounceRequest.bind(this))
-    service.on('service-packet-change', this._onServiceChange.bind(this))
-    service.start()
-    return service
-  },
+  public publish(opts: ServiceOptions): Service {
+    const service = new Service(opts);
 
-  unpublishAll: function (cb) {
-    this._tearDown(this._services, cb)
-    this._services = []
-  },
+    service.on(ServiceEvent.PUBLISH, this._onServicePublish.bind(this, service));
+    service.on(ServiceEvent.UNPUBLISH, this._onServiceUnpublish.bind(this, service));
+    service.on(ServiceEvent.ANNOUNCE_REQUEST, this._onAnnounceRequest.bind(this));
+    service.on(ServiceEvent.PACKET_CHANGE, this._onServiceChange.bind(this));
+    service.start();
 
-  destroy: function () {
-    for (var i = 0; i < this._services.length; i++) { this._services[i].destroy() }
-  },
+    return service;
+  }
 
-  /**
-     * Stop the given services
-     *
-     * Besides removing a service from the mDNS registry, a "goodbye"
-     * message is sent for each service to let the network know about the
-     * shutdown.
-     */
-  _tearDown: function (services, cb) {
-    if (!Array.isArray(services)) { services = [services] }
+  unpublishAll(callback?: (error?: Error) => void): void {
+    this._tearDown(this.services, callback);
+    this.services = [];
+  }
 
-    services = services.filter(function (service) {
-      return service._activated // ignore services not currently starting or started
-    })
-
-    var records = flatten.depth(services.map(function (service) {
-      service.deactivate()
-      var records = service._records()
-      records.forEach(function (record) {
-        record.ttl = 0 // prepare goodbye message
-      })
-      return records
-    }), 1)
-
-    if (records.length === 0) { return cb && cb() }
-
-    this._server.unregister(records)
-
-    this._server.mdns.respond(records, this._onTearDownComplete.bind(this, services, cb))
-  },
-
-  _onTearDownComplete: function (services, cb) {
-    for (var i = 0; i < services.length; i++) { services[i].published = false }
-
-    if (cb) { cb.apply(null, Array.prototype.slice.call(arguments, 2)) }
-  },
-
-  _onServiceChange: function (oldPackets) {
-    this._server.unregister(oldPackets)
-  },
+  destroy(): void {
+    for (let i = 0; i < this.services.length; i++) {
+      this.services[i].destroy();
+    }
+  }
 
   /**
-     * Initial service announcement
-     *
-     * Used to announce new services when they are first registered.
-     *
-     * Broadcasts right away, then after 3 seconds, 9 seconds, 27 seconds,
-     * and so on, up to a maximum interval of one hour.
-     */
-  _onAnnounceRequest: function (packet, cb) {
-    this._server.register(packet)
-    this._server.mdns.respond(packet, cb)
-  },
+   * Stop the given services
+   *
+   * Besides removing a service from the mDNS registry, a "goodbye"
+   * message is sent for each service to let the network know about the
+   * shutdown.
+   */
+  _tearDown(services: Service[] | Service, callback?: (error?: Error) => void): void {
+    if (!Array.isArray(services)) {
+      services = [services];
+    }
 
-  _onServiceUnpublish: function (service, cb) {
-    var index = this._services.indexOf(service)
+    services = services.filter((service) => {
+      return service.activated; // ignore services not currently starting or started
+    });
 
-    this._tearDown(service, cb)
+    const records: ResourceRecord[] = [];
+    services.forEach(service => {
+      const serviceRecords = service._records();
+      serviceRecords.forEach(rr => rr.ttl = 0); // prepare goodbye message
 
-    if (index !== -1) { this._services.splice(index, 1) }
-  },
+      records.push(...serviceRecords);
+    });
 
-  _onServicePublish: function (service) {
-    this._services.push(service)
+    if (records.length === 0) {
+      return callback && callback();
+    }
 
-    if (service.probe) { (new Prober(this._server.mdns, service, this._onProbeComplete.bind(this, service))).start() } else { service.announce() }
-  },
+    this.server.unregister(records);
 
-  _onProbeComplete: function (service, exists) {
-    if (!exists) { return service.announce() }
+    this.server.mdns.respond(records, this._onTearDownComplete.bind(this, services, callback));
+  }
+
+  _onTearDownComplete(services: Service[], callback?: (error?: Error) => void, error?: Error): void {
+    for (let i = 0; i < services.length; i++) {
+      services[i].published = false;
+    }
+
+    if (callback) {
+      callback(error);
+    }
+  }
+
+  _onServiceChange(oldPackets: ResourceRecord[]): void {
+    this.server.unregister(oldPackets);
+  }
+
+  /**
+   * Initial service announcement
+   *
+   * Used to announce new services when they are first registered.
+   *
+   * Broadcasts right away, then after 3 seconds, 9 seconds, 27 seconds,
+   * and so on, up to a maximum interval of one hour.
+   */
+  _onAnnounceRequest(packet: ResourceRecord[], callback: () => void): void {
+    this.server.register(packet);
+    this.server.mdns.respond(packet, callback);
+  }
+
+  _onServiceUnpublish(service: Service, callback?: (error?: Error) => void): void {
+    const index = this.services.indexOf(service);
+
+    this._tearDown(service, callback);
+
+    if (index !== -1) {
+      this.services.splice(index, 1);
+    }
+  }
+
+  private _onServicePublish(service: Service): void {
+    this.services.push(service);
+
+    if (service.probe) {
+      new Prober(this.server.mdns, service, this._onProbeComplete.bind(this, service)).start();
+    } else {
+      service.announce();
+    }
+  }
+
+  _onProbeComplete(service: Service, exists: boolean): void {
+    if (!exists) {
+      return service.announce();
+    }
 
     // Handle error
-    service.stop()
-    service.emit('error', new Error('Service name is already in use on the network'))
+    service.stop();
+    service.emit(ServiceEvent.ERROR, new Error("Service name is already in use on the network"));
   }
 
 }
-
-module.exports = Registry

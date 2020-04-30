@@ -1,13 +1,7 @@
-'use strict'
+const upperCaseLetters = /[A-Z]/g;
 
-const r = /[A-Z]/g
-
-module.exports = function (a, b) {
-  a = a.replace(r, replacer)
-  b = b.replace(r, replacer)
-  return a === b
-}
-
-function replacer (m) {
-  return m.toLowerCase()
+export default function (a: string, b: string): boolean {
+  a = a.replace(upperCaseLetters, value => value.toLowerCase());
+  b = b.replace(upperCaseLetters, value => value.toLowerCase());
+  return a === b;
 }

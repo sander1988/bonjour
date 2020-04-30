@@ -1,17 +1,51 @@
-'use strict'
+import {MDNS, ResponsePacket} from "multicast-dns";
+import dnsEqual from "./utils/dnsEqual";
+import {ARecord, PTRRecord, RecordType} from "dns-packet";
+import {decodeTxtBlocks, TXTDecoderOptions} from "./utils/txtDecoder";
+import {AddressInfo} from "net";
+import serviceName from "multicast-dns-service-types";
+import {EventEmitter} from "events";
 
-var util = require('util')
-var EventEmitter = require('events').EventEmitter
-var serviceName = require('multicast-dns-service-types')
-var dnsEqual = require('./utils/dnsEqual')
-var dnsTxt = require('./utils/txtDecoder')
+const TLD = ".local";
+const WILDCARD = "_services._dns-sd._udp" + TLD;
 
-var TLD = '.local'
-var WILDCARD = '_services._dns-sd._udp' + TLD
+export interface BrowserOptions {
+  name?: string;
+  type?: string;
+  subtypes?: string[];
+  protocol?: "tcp" | "udp";
+  txt?: TXTDecoderOptions;
+}
 
-module.exports = Browser
+export interface DiscoveredService {
+  addresses: string[];
+  name: string;
+  fqdn: string;
+  host: string;
+  referer: AddressInfo;
+  port: number;
+  type: string;
+  protocol: string;
+  subtypes: string[];
 
-util.inherits(Browser, EventEmitter)
+  rawTxt: Buffer[];
+  txt: Record<string, string>; // TODO if txt options are supplied this type might as well be Record<string, Buffer>
+}
+
+export const enum BrowserEvent {
+  UP = "up",
+  DOWN = "down",
+}
+
+export declare interface Browser {
+
+  on(event: BrowserEvent.UP, listener: (service: DiscoveredService) => void): this;
+  on(event: BrowserEvent.DOWN, listener: (service: DiscoveredService) => void): this;
+
+  emit(event: BrowserEvent.UP, service: DiscoveredService): boolean;
+  emit(event: BrowserEvent.DOWN, service: DiscoveredService): boolean;
+
+}
 
 /**
  * Start a browser
@@ -27,173 +61,208 @@ util.inherits(Browser, EventEmitter)
  * longer available, it is removed from the list and a "down" event is emitted
  * with that service.
  */
-function Browser (mdns, opts, onup) {
-  if (typeof opts === 'function') return new Browser(mdns, null, opts)
+export class Browser extends EventEmitter {
 
-  EventEmitter.call(this)
+  private readonly mdns: MDNS;
+  private readonly txtOptions?: TXTDecoderOptions;
 
-  this._mdns = mdns
-  this._onresponse = null
-  this._serviceMap = {}
-  this._txt = dnsTxt(opts.txt)
+  private readonly name: string;
+  private readonly wildcard: boolean;
 
-  if (!opts || !opts.type) {
-    this._name = WILDCARD
-    this._wildcard = true
-  } else {
-    this._name = serviceName.stringify(opts.type, opts.protocol || 'tcp') + TLD
-    if (opts.name) this._name = opts.name + '.' + this._name
-    this._wildcard = false
-  }
+  private readonly serviceMap: Record<string, boolean> = {};
+  private readonly services: DiscoveredService[] = [];
 
-  this.services = []
+  private onResponse?: (packet: ResponsePacket, rinfo: AddressInfo) => void;
 
-  if (onup) this.on('up', onup)
+  constructor(mdns: MDNS, options?: BrowserOptions, onUp?: (service: DiscoveredService) => void) {
+    super();
 
-  this.start()
-}
+    this.mdns = mdns;
+    this.txtOptions = options?.txt;
 
-Browser.prototype.start = function () {
-  if (this._onresponse) return
-
-  var self = this
-
-  // List of names for the browser to listen for. In a normal search this will
-  // be the primary name stored on the browser. In case of a wildcard search
-  // the names will be determined at runtime as responses come in.
-  var nameMap = {}
-  if (!this._wildcard) nameMap[this._name] = true
-
-  this._onresponse = function (packet, rinfo) {
-    if (self._wildcard) {
-      packet.answers.forEach(function (answer) {
-        if (answer.type !== 'PTR' || answer.name !== self._name || answer.name in nameMap) return
-        nameMap[answer.data] = true
-        self._mdns.query(answer.data, 'PTR')
-      })
+    if (!options || !options.type) {
+      this.name = WILDCARD;
+      this.wildcard = true;
+    } else {
+      this.name = serviceName.stringify(options.type, options.protocol || "tcp") + TLD;
+      if (options.name) {
+        this.name = options.name + "." + this.name;
+      }
+      this.wildcard = false;
     }
 
-    Object.keys(nameMap).forEach(function (name) {
-      // unregister all services shutting down
-      goodbyes(name, packet).forEach(self._removeService.bind(self))
+    if (onUp) {
+      this.on(BrowserEvent.UP, onUp);
+    }
 
-      // register all new services
-      var matches = buildServicesFor(name, packet, self._txt, rinfo)
-      if (matches.length === 0) return
-
-      matches.forEach(function (service) {
-        if (self._serviceMap[service.fqdn]) return // ignore already registered services
-        self._addService(service)
-      })
-    })
+    this.start();
   }
 
-  this._mdns.on('response', this._onresponse)
-  this.update()
-}
-
-Browser.prototype.stop = function () {
-  if (!this._onresponse) return
-
-  this._mdns.removeListener('response', this._onresponse)
-  this._onresponse = null
-}
-
-Browser.prototype.update = function () {
-  this._mdns.query(this._name, 'PTR')
-}
-
-Browser.prototype._addService = function (service) {
-  this.services.push(service)
-  this._serviceMap[service.fqdn] = true
-  this.emit('up', service)
-}
-
-Browser.prototype._removeService = function (fqdn) {
-  var service, index
-  this.services.some(function (s, i) {
-    if (dnsEqual(s.fqdn, fqdn)) {
-      service = s
-      index = i
-      return true
+  start(): void {
+    if (this.onResponse) {
+      return;
     }
-  })
-  if (!service) return
-  this.services.splice(index, 1)
-  delete this._serviceMap[fqdn]
-  this.emit('down', service)
-}
 
-// PTR records with a TTL of 0 is considered a "goodbye" announcement. I.e. a
-// DNS response broadcasted when a service shuts down in order to let the
-// network know that the service is no longer going to be available.
-//
-// For more info see:
-// https://tools.ietf.org/html/rfc6762#section-8.4
-//
-// This function returns an array of all resource records considered a goodbye
-// record
-function goodbyes (name, packet) {
-  return packet.answers.concat(packet.additionals)
-    .filter(function (rr) {
-      return rr.type === 'PTR' && rr.ttl === 0 && dnsEqual(rr.name, name)
-    })
-    .map(function (rr) {
-      return rr.data
-    })
-}
+    // List of names for the browser to listen for. In a normal search this will
+    // be the primary name stored on the browser. In case of a wildcard search
+    // the names will be determined at runtime as responses come in.
+    //const nameMap: Record<string, boolean> = {};
+    const names: string[] = [];
+    if (!this.wildcard) {
+      names.push(this.name);
+    }
 
-function buildServicesFor (name, packet, txt, referer) {
-  var records = packet.answers.concat(packet.additionals).filter(function (rr) {
-    return rr.ttl > 0 // ignore goodbye messages
-  })
-
-  return records
-    .filter(function (rr) {
-      return rr.type === 'PTR' && dnsEqual(rr.name, name)
-    })
-    .map(function (ptr) {
-      var service = {
-        addresses: []
+    this.onResponse = (packet, rinfo): void => {
+      if (this.wildcard) {
+        packet.answers.forEach(answer => {
+          if (answer.type !== RecordType.PTR || answer.name !== this.name || names.includes(answer.name)) {
+            return;
+          }
+          names.push(answer.data);
+          this.mdns.query(answer.data, RecordType.PTR);
+        });
       }
 
-      records
-        .filter(function (rr) {
-          return (rr.type === 'SRV' || rr.type === 'TXT') && dnsEqual(rr.name, ptr.data)
-        })
-        .forEach(function (rr) {
-          if (rr.type === 'SRV') {
-            var parts = rr.name.split('.')
-            var name = parts[0]
-            var types = serviceName.parse(parts.slice(1, -1).join('.'))
-            service.name = name
-            service.fqdn = rr.name
-            service.host = rr.data.target
-            service.referer = referer
-            service.port = rr.data.port
-            service.type = types.name
-            service.protocol = types.protocol
-            service.subtypes = types.subtypes
-          } else if (rr.type === 'TXT') {
-            // rr.data is an Array of Buffer instead of Buffer
-            service.rawTxt = rr.data // array of buffers, each representing a block
-            service.txt = txt.decodeBlocks(service.rawTxt)
-          }
-        })
+      names.forEach(name => {
+        // unregister all services shutting down
+        Browser.goodbyes(name, packet).forEach(this._removeService.bind(this));
 
-      if (!service.name) return
+        // register all new services
+        const matches = this.buildServicesFor(name, packet, rinfo);
+        if (matches.length === 0) {
+          return;
+        }
 
-      records
-        .filter(function (rr) {
-          return (rr.type === 'A' || rr.type === 'AAAA') && dnsEqual(rr.name, service.host)
-        })
-        .forEach(function (rr) {
-          service.addresses.push(rr.data)
-        })
+        matches.forEach(service => {
+          if (this.serviceMap[service.fqdn]) {
+            return;
+          } // ignore already registered services
+          this._addService(service);
+        });
+      });
+    };
 
-      return service
-    })
-    .filter(function (rr) {
-      return !!rr
-    })
+    this.mdns.on("response", this.onResponse);
+    this.update();
+  }
+
+  stop(): void {
+    if (!this.onResponse) {
+      return;
+    }
+
+    this.mdns.removeListener("response", this.onResponse);
+    this.onResponse = undefined;
+  }
+
+  update(): void {
+    this.mdns.query(this.name, RecordType.PTR);
+  }
+
+  _addService(service: DiscoveredService): void {
+    this.services.push(service);
+    this.serviceMap[service.fqdn] = true;
+    this.emit(BrowserEvent.UP, service);
+  }
+
+  _removeService(fqdn: string): void {
+    let service: DiscoveredService | undefined = undefined;
+    let index = -1;
+
+    this.services.some((s, i) => {
+      if (dnsEqual(s.fqdn, fqdn)) {
+        service = s;
+        index = i;
+        return true;
+      }
+    });
+    if (!service || index < 0) {
+      return;
+    }
+
+    this.services.splice(index, 1);
+    delete this.serviceMap[fqdn];
+    this.emit(BrowserEvent.DOWN, service);
+  }
+
+  // PTR records with a TTL of 0 is considered a "goodbye" announcement. I.e. a
+  // DNS response broadcasted when a service shuts down in order to let the
+  // network know that the service is no longer going to be available.
+  //
+  // For more info see:
+  // https://tools.ietf.org/html/rfc6762#section-8.4
+  //
+  // This function returns an array of all resource records considered a goodbye
+  // record
+  static goodbyes(name: string, packet: ResponsePacket): string[] {
+    return packet.answers.concat(packet.additionals!)
+      .filter((rr) => {
+        return rr.type === RecordType.PTR && rr.ttl === 0 && dnsEqual(rr.name, name);
+      })
+      .map((rr) => {
+        return (rr as PTRRecord).data;
+      });
+  }
+
+  private buildServicesFor(name: string, packet: ResponsePacket, referer: AddressInfo): DiscoveredService[] {
+    const records = packet.answers.concat(packet.additionals).filter((rr) => {
+      return rr.ttl && rr.ttl > 0; // ignore goodbye messages
+    });
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+    // @ts-ignore
+    return records
+      .filter(rr => rr.type === RecordType.PTR && dnsEqual(rr.name, name))
+      .map(ptr => {
+        const service: Partial<DiscoveredService> = {
+          addresses: [],
+        };
+
+        records
+          .filter((rr) => {
+            return (rr.type === "SRV" || rr.type === "TXT") && dnsEqual(rr.name, (ptr as PTRRecord).data);
+          })
+          .forEach((rr) => {
+            if (rr.type === "SRV") {
+              const parts = rr.name.split(".");
+              const name = parts[0];
+              const types = serviceName.parse(parts.slice(1, -1).join("."));
+              service.name = name;
+              service.fqdn = rr.name;
+              service.host = rr.data.target;
+              service.referer = referer;
+              service.port = rr.data.port;
+              service.type = types.name;
+              service.protocol = types.protocol;
+              service.subtypes = types.subtypes;
+            } else if (rr.type === "TXT") {
+              // rr.data is an Array of Buffer instead of Buffer
+              service.rawTxt = rr.data as Buffer[]; // array of buffers, each representing a block
+              if (this.txtOptions) {
+                // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+                // @ts-ignore
+                service.txt = decodeTxtBlocks(service.rawTxt, this.txtOptions);
+              } else {
+                service.txt = decodeTxtBlocks(service.rawTxt);
+              }
+            }
+          });
+
+        if (!service.name) {
+          return undefined;
+        }
+
+        records
+          .filter((rr) => {
+            return (rr.type === RecordType.A || rr.type === RecordType.AAAA) && dnsEqual(rr.name, service.host!);
+          })
+          .forEach((rr) => {
+            service.addresses!.push((rr as ARecord).data);
+          });
+
+        return service as DiscoveredService;
+      })
+      .filter(service => !!service);
+  }
+
 }

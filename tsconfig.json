@@ -11,10 +11,12 @@
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
-        "outDir": "src",
+        "outDir": "lib",
         "rootDir": "src",
         "strict": true,
-        "esModuleInterop": true
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "preserveConstEnums": true
     },
     "include": [
         "src/"
