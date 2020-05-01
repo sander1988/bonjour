@@ -13,8 +13,7 @@ var getAddresses = function () {
 
   Object.values(os.networkInterfaces()).forEach(interfaces => {
     interfaces.forEach(iface => {
-      if (iface.internal || iface.mac === '00:00:00:00:00:00' ||
-        ip.isLoopback(iface.address) ||
+      if (iface.internal || ip.isLoopback(iface.address) ||
         (!ip.isV4Format(iface.address) && ip.isPrivate(iface.address)) ||
         addresses.includes(iface.address)) {
         return
