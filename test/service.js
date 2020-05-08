@@ -11,9 +11,7 @@ var getAddressesRecords = function (host) {
   const addresses = []
   Object.values(os.networkInterfaces()).forEach(interfaces => {
     interfaces.forEach(iface => {
-      if (iface.internal || ip.isLoopback(iface.address) ||
-        (!ip.isV4Format(iface.address) && ip.isPrivate(iface.address)) ||
-        addresses.includes(iface.address)) {
+      if (iface.internal || addresses.includes(iface.address)) {
         return
       }
 
