@@ -9,6 +9,18 @@ A Bonjour/Zeroconf protocol implementation in pure JavaScript. Publish
 services on the local network or discover existing services using
 multicast DNS.
 
+##Notice
+
+The `bonjour-hap` library was used in [HAP-NodeJS](https://github.com/homebridge/HAP-NodeJS) in versions
+prior to v0.8.0. 
+`bonjour-hap` does NOT correctly implement mdns service discovery as it does not correctly implement
+RFC 6762 or RFC 6763. The library heavily congest the network with unnecessary traffic, does not implement
+certain features and does not behave as expected from a mdns responder (or querier).
+It SHOULD NOT be used anymore. It is not maintained anymore. The code should not be taken as reference for anything.
+
+`bonjour-hap` was replaced by the [ciao](https://github.com/homebridge/ciao) library, which is basically a rewrite 
+and strongly adheres to the mentioned RFCs. Ciao is used in `HAP-NodeJS` since v0.8.0.
+
 ## Installation
 
 ```
