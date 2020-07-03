@@ -9,7 +9,7 @@ A Bonjour/Zeroconf protocol implementation in pure JavaScript. Publish
 services on the local network or discover existing services using
 multicast DNS.
 
-##Notice
+## Notice
 
 The `bonjour-hap` library was used in [HAP-NodeJS](https://github.com/homebridge/HAP-NodeJS) in versions
 prior to v0.8.0. 
