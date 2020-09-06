@@ -8,7 +8,7 @@ function Bonjour (opts) {
   if (!(this instanceof Bonjour)) { return new Bonjour(opts) }
 
   this._server = new Server(opts)
-  this._registry = new Registry(this._server)
+  this._registry = new Registry(this._server, opts.interface)
 }
 
 Bonjour.prototype = {
